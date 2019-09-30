@@ -11,6 +11,7 @@ import com.google.common.eventbus.Subscribe;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import nodecore.miners.pop.contracts.*;
+import nodecore.miners.pop.events.ProgramQuitEvent;
 import nodecore.miners.pop.events.ShellCompletedEvent;
 import nodecore.miners.pop.api.ApiServer;
 import nodecore.miners.pop.api.WebApiModule;
@@ -28,6 +29,8 @@ import java.util.concurrent.*;
 public class Program {
     private static final Logger logger = LoggerFactory.getLogger(Program.class);
     private final CountDownLatch shutdownSignal;
+    private DefaultShell shell;
+    private static boolean externalQuit = false;
 
     private Program() {
         this.shutdownSignal = new CountDownLatch(1);
@@ -37,6 +40,7 @@ public class Program {
 
     private int run(String[] args) {
         System.out.print(SharedConstants.LICENSE);
+        externalQuit = false;
 
         Runtime.getRuntime().addShutdownHook(new Thread(shutdownSignal::countDown));
 
@@ -75,7 +79,7 @@ public class Program {
         apiServer.setAddress(configuration.getHttpApiAddress());
         apiServer.setPort(configuration.getHttpApiPort());
 
-        DefaultShell shell = startupInjector.getInstance(DefaultShell.class);
+        shell = startupInjector.getInstance(DefaultShell.class);
         shell.initialize();
         try {
             popMiner.run();
@@ -118,9 +122,22 @@ public class Program {
             logger.error(e.getMessage(), e);
         }
     }
+    
+    @Subscribe public void onProgramQuit(ProgramQuitEvent event) {
+    	///HACK: imitate an "exit" command in the console
+    	if(event.reason == 1) {
+    	    externalQuit = true;
+    	}
+    	shell.quitExternally();
+    }
 
     public static void main(String[] args) {
-        Program main = new Program();
-        System.exit(main.run(args));
+    	Program main = new Program();
+    	int programExitResult = main.run(args);
+    	if(externalQuit) {
+    		System.exit(2);
+    		return;
+    	}
+        System.exit(programExitResult);
     }
 }

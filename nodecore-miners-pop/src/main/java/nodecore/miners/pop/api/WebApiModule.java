@@ -16,5 +16,7 @@ public class WebApiModule extends AbstractModule {
         Multibinder<ApiController> controllers = Multibinder.newSetBinder(binder(), ApiController.class);
         controllers.addBinding().to(MiningController.class);
         controllers.addBinding().to(ConfigurationController.class);
+        controllers.addBinding().to(QuitController.class);
+        controllers.addBinding().to(LastBitcoinBlockController.class);
     }
 }
